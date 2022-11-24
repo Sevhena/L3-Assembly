@@ -10,10 +10,14 @@ def main():
     with open(input_file) as f:
         source = f.read()
     node = ast.parse(source)
+    print("=======================================")
+    print(ast.dump(node, indent=2))
+    print("========================================")
     if print_ast:
         print(ast.dump(node, indent=2))
     else:
         process(input_file, node)
+    
     
 def process_cli():
     """"Process Command Line Interface options"""
