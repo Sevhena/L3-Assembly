@@ -157,6 +157,7 @@ class TopLevelProgram(ast.NodeVisitor):
         # If condition is false
         if len(node.orelse) > 0:
             # If next is an else
+            # print(type(node.orelse[0]))
             if not isinstance(node.orelse[0], ast.If):
                 else_flag = True
                 self.__record_instruction(f'{inverted[type(node.test.ops[0])]} else{self.__if_tree_id}')
@@ -170,6 +171,9 @@ class TopLevelProgram(ast.NodeVisitor):
         # Visits body of if
         for contents in node.body:
             self.visit(contents)
+
+        # Branch to continuation of main program
+        self.__record_instruction(f'BR end_if{self.__if_tree_id}')
         
         # Visits other ifs in if tree
         for contents in node.orelse:
