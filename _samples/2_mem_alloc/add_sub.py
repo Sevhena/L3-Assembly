@@ -6,3 +6,5 @@ result = result - variable
 variable = 1
 result = result - variable
 print(result)
+
+

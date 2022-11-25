@@ -14,6 +14,8 @@ def main():
         print(ast.dump(node, indent=2))
     else:
         process(input_file, node)
+
+    
     
 def process_cli():
     """"Process Command Line Interface options"""
@@ -30,8 +32,8 @@ def process(input_file, root_node):
     memory_alloc = StaticMemoryAllocation(extractor.results)
     print('; Branching to top level (tl) instructions')
     print('\t\tBR tl')
-    memory_alloc.generate()
-    top_level = TopLevelProgram('tl')
+    symbols,constants = memory_alloc.generate()
+    top_level = TopLevelProgram('tl',symbols,constants)
     top_level.visit(root_node)
     ep = EntryPoint(top_level.finalize())
     ep.generate() 
