@@ -10,9 +10,9 @@ def main():
     with open(input_file) as f:
         source = f.read()
     node = ast.parse(source)
-    print("=======================================")
-    print(ast.dump(node, indent=2))
-    print("========================================")
+    # print("=======================================")
+    # print(ast.dump(node, indent=2))
+    # print("========================================")
     if print_ast:
         print(ast.dump(node, indent=2))
     else:
