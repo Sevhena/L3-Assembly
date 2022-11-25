@@ -6,7 +6,6 @@ class StaticMemoryAllocation():
         self.__global_vars = global_vars
         self.symbols = {}
         self.constants = []
-        self.loopers = []
 
     def generate(self):
         print('; Allocating Global (static) memory')

@@ -18,7 +18,7 @@ class TopLevelProgram(ast.NodeVisitor):
         self.occurance = {}
         self.symbols = symbols
         self.constants = constants
-        self.inLoop = []
+        self.inLoop = False
 
     def finalize(self):
         self.__instructions.append((None, '.END'))
@@ -41,9 +41,10 @@ class TopLevelProgram(ast.NodeVisitor):
         else:
             self.occurance[self.__current_variable] += 1
         # visiting the left part, now knowing where to store the result
+
         if(self.__current_variable[0] != "_"):
             if(str(type(node.value)) == "<class 'ast.Constant'>"):
-                if(self.occurance[self.__current_variable] > 1 or (self.__current_variable not in self.inLoop)): #--------------------
+                if(self.occurance[self.__current_variable] > 1 or (self.inLoop == True)): #--------------------
                     self.visit(node.value)
                     if self.__should_save:
                         self.__record_instruction(f'STWA {temp},d')
@@ -58,11 +59,10 @@ class TopLevelProgram(ast.NodeVisitor):
                     self.__should_save = True
                 self.__current_variable = None
 
+
     def visit_Constant(self, node):
-        if(self.__current_variable in self.inLoop):
-            print("=== ",self.__current_variable, str(type(node.value)))
         if(self.__current_variable[0] != "_"):
-            if(self.occurance[self.__current_variable] > 1 or (self.__current_variable not in self.inLoop)): #--------------------
+            if(self.occurance[self.__current_variable] > 1 or (self.inLoop == True)): #--------------------
                 self.__record_instruction(f'LDWA {node.value},i')
     
     def visit_Name(self, node):
@@ -105,7 +105,7 @@ class TopLevelProgram(ast.NodeVisitor):
     ####
 
     def visit_While(self, node):
-        self.inLoop.append(node.body[0].targets[0].id)
+        self.inLoop = True
         loop_id = self.__identify_while()
         inverted = {
             ast.Lt:     'BRGE', # '<'  in the code means we branch if '>=' 
@@ -206,6 +206,8 @@ class TopLevelProgram(ast.NodeVisitor):
         self.__instructions.append((label, instruction))
 
     def __access_memory(self, node, instruction, label = None):
+
+
         if isinstance(node, ast.Constant):
             self.__record_instruction(f'{instruction} {node.value},i', label)
         else:
