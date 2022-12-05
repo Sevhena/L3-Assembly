@@ -1,29 +1,64 @@
 
 class StaticMemoryAllocation():
 
-    def __init__(self, global_vars: dict()) -> None:
-        self.__global_vars = global_vars
-        self.symbols = {}
+    def __init__(self, vars: dict(),function,params,ret) -> None:
+        self.function = function
+        self.params = params
+        self.ret = ret
+        if(function):
+            self.func_vars = vars
+        else:
+            self.__global_vars = vars
+        self.symbols_global = {}
+        self.symbols_func = {}
+        self.memory = 0
         self.constants = []
 
     def generate(self):
-        print('; Allocating Global (static) memory')
-        for n in self.__global_vars:
-            if(len(n) >8):
-                if(n not in self.symbols):
-                    self.symbols[n] = "var"+ str(len(self.symbols))
+        if(self.function):
+            print('; Allocating Function memory')
+            for n in self.func_vars:
+                if(len(n) >8):
+                    if(n not in self.symbols_func):
+                        self.symbols_func[n] = "var"+ str(len(self.symbols_func))
 
-            if(n in self.symbols):
-                temp = self.symbols[n]
-            else:
-                temp = n
+                if(n in self.symbols_func):
+                    temp = self.symbols_func[n]
+                else:
+                    temp = n
+                print(f'{str(temp+":"):<9}\t.EQUATE ' + str(self.memory))
+                self.memory+=2
+
+            self.memory+=2
+            if(len(self.params) >0):
+                for para in self.params:
+                    print(f'{str(self.params[para]+":"):<9}\t.EQUATE ' + str(self.memory))
+                    self.memory+=2
+                for ret in self.ret:
+                    print(f'{str(self.ret[ret][0]+":"):<9}\t.EQUATE ' + str(self.memory))
+                    self.memory+=2
                 
-            if(self.__global_vars[n] == "<class 'ast.Call'>" or self.__global_vars[n] == "<class 'ast.BinOp'>" or self.__global_vars[n] == "<class 'ast.Name'>" ):
-                print(f'{str(temp+":"):<9}\t.BLOCK 2')
-            elif(self.__global_vars[n][0] == "<class 'ast.Constant'>" and n[0] == '_'):
-                self.constants.append(n)
-                print(f'{str(temp+":"):<9}\t.EQUATE ' + str(self.__global_vars[n][1]))
-            elif(self.__global_vars[n][0] == "<class 'ast.Constant'>"):
-                print(f'{str(temp+":"):<9}\t.WORD '+ str(self.__global_vars[n][1]))
-        return (self.symbols,self.constants)
+            return (self.symbols_func,len(self.func_vars))
+        else:
+            print('; Allocating Global (static) memory')
+            for n in self.__global_vars:
+                if(len(n) >8):
+                    if(n not in self.symbols_global):
+                        self.symbols_global[n] = "var"+ str(len(self.symbols_global))
+
+                if(n in self.symbols_global):
+                    temp = self.symbols_global[n]
+                else:
+                    temp = n
+                if(self.__global_vars[n] == "<class 'ast.Call'>" or self.__global_vars[n] == "<class 'ast.BinOp'>" or self.__global_vars[n] == "<class 'ast.Name'>" ):
+                    if(temp in self.ret):
+                        print(f'{str(self.ret[temp][1]+":"):<9}\t.BLOCK 2')
+                    else:
+                        print(f'{str(temp+":"):<9}\t.BLOCK 2')
+                elif(self.__global_vars[n][0] == "<class 'ast.Constant'>" and n[0] == '_'):
+                    self.constants.append(n)
+                    print(f'{str(temp+":"):<9}\t.EQUATE ' + str(self.__global_vars[n][1]))
+                elif(self.__global_vars[n][0] == "<class 'ast.Constant'>"):
+                    print(f'{str(temp+":"):<9}\t.WORD '+ str(self.__global_vars[n][1]))
+            return (self.symbols_global,self.constants)
 
