@@ -1,3 +1,4 @@
+import ast
 
 class StaticMemoryAllocation():
 
@@ -18,11 +19,11 @@ class StaticMemoryAllocation():
         if(self.function):
             print('; Allocating Function memory')
             for n in self.func_vars:
-                if(len(n) >8):
-                    if(n not in self.symbols_func):
-                        self.symbols_func[n] = "var"+ str(len(self.symbols_func))
+                if len(n) > 8:
+                    if n not in self.symbols_func:
+                        self.symbols_func[n] = "var" + str(len(self.symbols_func))
 
-                if(n in self.symbols_func):
+                if n in self.symbols_func :
                     temp = self.symbols_func[n]
                 else:
                     temp = n
@@ -50,15 +51,16 @@ class StaticMemoryAllocation():
                     temp = self.symbols_global[n]
                 else:
                     temp = n
-                if(self.__global_vars[n] == "<class 'ast.Call'>" or self.__global_vars[n] == "<class 'ast.BinOp'>" or self.__global_vars[n] == "<class 'ast.Name'>" ):
+                glob_var = self.__global_vars[n]
+            if isinstance(glob_var, (ast.Call, ast.BinOp, ast.Name)):
                     if(temp in self.ret):
                         print(f'{str(self.ret[temp][1]+":"):<9}\t.BLOCK 2')
                     else:
-                        print(f'{str(temp+":"):<9}\t.BLOCK 2')
-                elif(self.__global_vars[n][0] == "<class 'ast.Constant'>" and n[0] == '_'):
-                    self.constants.append(n)
-                    print(f'{str(temp+":"):<9}\t.EQUATE ' + str(self.__global_vars[n][1]))
-                elif(self.__global_vars[n][0] == "<class 'ast.Constant'>"):
-                    print(f'{str(temp+":"):<9}\t.WORD '+ str(self.__global_vars[n][1]))
-            return (self.symbols_global,self.constants)
+                        print(f'{str(temp + ":"):<9}\t.BLOCK 2')
+            elif isinstance(glob_var[0], ast.Constant) and n[0] == '_':
+                self.constants.append(n)
+                print(f'{str(temp + ":"):<9}\t.EQUATE ' + str(glob_var[1]))
+            elif isinstance(glob_var[0], ast.Constant):
+                print(f'{str(temp + ":"):<9}\t.WORD ' + str(glob_var[1]))
+        return (self.symbols_global, self.constants)
 

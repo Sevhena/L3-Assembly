@@ -33,9 +33,11 @@ def process_cli():
 
 def process(input_file, root_node):
     print(f'; Translating {input_file}')
+    # print("root node: ", root_node)
     extractor = GlobalVariableExtraction()
     extractor.visit(root_node)
     #allocate memory for global vars
+    # print("results: ", extractor.results)
     memory_alloc = StaticMemoryAllocation(extractor.results,False,extractor.params,extractor.ret)
     #allocate memory for function vars and paramters and return value
     memory_alloc2 = StaticMemoryAllocation(extractor.func_results,True,extractor.params,extractor.ret)

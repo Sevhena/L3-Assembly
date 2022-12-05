@@ -20,9 +20,9 @@ class GlobalVariableExtraction(ast.NodeVisitor):
             raise ValueError("Only unary assignments are supported")
         if(node.targets[0].id not in self.results):
             if('value' in node.value.__match_args__):
-                self.results[node.targets[0].id] = [str(type(node.value)),node.value.value]
+                self.results[node.targets[0].id] = [node.value, node.value.value]
             else:
-                self.results[node.targets[0].id] = str(type(node.value))
+                self.results[node.targets[0].id] = node.value
 
 
     def vis_Asg_func(self, node):
