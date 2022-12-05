@@ -52,15 +52,16 @@ class StaticMemoryAllocation():
                 else:
                     temp = n
                 glob_var = self.__global_vars[n]
-            if isinstance(glob_var, (ast.Call, ast.BinOp, ast.Name)):
-                    if(temp in self.ret):
-                        print(f'{str(self.ret[temp][1]+":"):<9}\t.BLOCK 2')
-                    else:
-                        print(f'{str(temp + ":"):<9}\t.BLOCK 2')
-            elif isinstance(glob_var[0], ast.Constant) and n[0] == '_':
-                self.constants.append(n)
-                print(f'{str(temp + ":"):<9}\t.EQUATE ' + str(glob_var[1]))
-            elif isinstance(glob_var[0], ast.Constant):
-                print(f'{str(temp + ":"):<9}\t.WORD ' + str(glob_var[1]))
-        return (self.symbols_global, self.constants)
+                if isinstance(glob_var, (ast.Call, ast.BinOp, ast.Name)):
+                        if(temp in self.ret):
+                            print(f'{str(self.ret[temp][1]+":"):<9}\t.BLOCK 2')
+                        else:
+                            print(f'{str(temp + ":"):<9}\t.BLOCK 2')
+                elif isinstance(glob_var[0], ast.Constant) and n[0] == '_':
+                    self.constants.append(n)
+                    print(f'{str(temp + ":"):<9}\t.EQUATE ' + str(glob_var[1]))
+                elif isinstance(glob_var[0], ast.Constant):
+                    print(f'{str(temp + ":"):<9}\t.WORD ' + str(glob_var[1]))
+
+            return (self.symbols_global, self.constants)
 

@@ -48,6 +48,15 @@ class TopLevelProgram(ast.NodeVisitor):
             if(self.__current_variable in self.ret and node.value.func.id in self.funcNames):
                 temp = self.ret[self.__current_variable][1]
                 returning = True
+            else:
+                if(self.__current_variable in self.global_symbols):
+                    temp = self.global_symbols[self.__current_variable]
+                else:
+                    temp = self.__current_variable
+                if(self.__current_variable not in self.occurance):
+                    self.occurance[self.__current_variable] = 1
+                else:
+                    self.occurance[self.__current_variable] += 1
         except:
             if(self.__current_variable in self.global_symbols):
                 temp = self.global_symbols[self.__current_variable]
@@ -160,7 +169,8 @@ class TopLevelProgram(ast.NodeVisitor):
                             count+=2
 
                     self.__record_instruction(f'CALL {node.func.id}')
-                    self.__record_instruction(f'ADDSP '+str(len(self.params)*2)+",i")
+                    if(len(self.params) > 0):
+                        self.__record_instruction(f'ADDSP '+str(len(self.params)*2)+",i")
                 else:
                     raise ValueError(f'Unsupported function call: { node.func.id}')
 
@@ -281,10 +291,15 @@ class TopLevelProgram(ast.NodeVisitor):
         self.inFunctionDef = True
         func_name = node.name
         self.funcNames.append(func_name)
+        check = False
         self.__record_instructionFunction(f'SUBSP '+ str(self.numOfFuncVars*2)+",i", label = f'{func_name}')
         for content in node.body:
-
+            if(str(type(content)) == "<class.ast.Return>"):
+                check =True
             self.visit(content)
+        if(not check):
+            self.__record_instructionFunction(f'ADDSP '+ str(self.numOfFuncVars*2)+",i")
+            self.__record_instructionFunction(f'RET ')
         self.inFunctionDef = False
         
     def visit_Return(self, node):
