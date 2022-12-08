@@ -15,6 +15,7 @@ class StaticMemoryAllocation():
         self.memory = 0
         self.constants = []
 
+
     def generate(self):
         if(self.function):
             print('; Allocating Function memory')
@@ -33,15 +34,18 @@ class StaticMemoryAllocation():
             self.memory+=2
             if(len(self.params) >0):
                 for para in self.params:
-                    print(f'{str(self.params[para]+":"):<9}\t.EQUATE ' + str(self.memory))
+                    print(f'{str(self.params[para][0]+":"):<9}\t.EQUATE ' + str(self.memory))
                     self.memory+=2
+            if(len(self.ret)>0):
                 for ret in self.ret:
-                    print(f'{str(self.ret[ret][0]+":"):<9}\t.EQUATE ' + str(self.memory))
-                    self.memory+=2
-                
-            return (self.symbols_func,len(self.func_vars))
+                    if(self.ret[ret][1] == False):
+                        print(f'{str(self.ret[ret][0]+":"):<9}\t.EQUATE ' + str(self.memory))
+                        self.memory+=2
+            numOfFunVars = self.calculateVars(self.func_vars)
+            return (self.symbols_func,numOfFunVars)
         else:
             print('; Allocating Global (static) memory')
+            accepted = False
             for n in self.__global_vars:
                 if(len(n) >8):
                     if(n not in self.symbols_global):
@@ -53,15 +57,30 @@ class StaticMemoryAllocation():
                     temp = n
                 glob_var = self.__global_vars[n]
                 if isinstance(glob_var, (ast.Call, ast.BinOp, ast.Name)):
-                        if(temp in self.ret):
-                            print(f'{str(self.ret[temp][1]+":"):<9}\t.BLOCK 2')
-                        else:
-                            print(f'{str(temp + ":"):<9}\t.BLOCK 2')
+                    for i in self.ret:
+                        if(temp in self.ret[i]):
+                            print(f'{str(self.ret[i][0]+":"):<9}\t.BLOCK 2')
+                            accepted = True
+                    if(not accepted):
+                        print(f'{str(temp + ":"):<9}\t.BLOCK 2')
                 elif isinstance(glob_var[0], ast.Constant) and n[0] == '_':
                     self.constants.append(n)
                     print(f'{str(temp + ":"):<9}\t.EQUATE ' + str(glob_var[1]))
                 elif isinstance(glob_var[0], ast.Constant):
                     print(f'{str(temp + ":"):<9}\t.WORD ' + str(glob_var[1]))
-
             return (self.symbols_global, self.constants)
 
+    def calculateVars(self,func_vars):
+        counts = {}
+        for var in func_vars:
+            if(len(func_vars[var]) == 2):
+                if(func_vars[var][1] in counts):
+                    counts[func_vars[var][1]] +=1
+                else:
+                    counts[func_vars[var][1]] = 1
+            else:
+                if(func_vars[var][2] in counts):
+                    counts[func_vars[var][2]] +=1
+                else:
+                    counts[func_vars[var][2]] = 1
+        return counts

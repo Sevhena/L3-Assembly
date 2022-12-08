@@ -37,6 +37,16 @@ def process(input_file, root_node):
     extractor = GlobalVariableExtraction()
     extractor.visit(root_node)
     #allocate memory for global vars
+   
+   
+    # print(extractor.results)
+    # print("=======================================")
+    # print(extractor.params)
+    # print("=======================================")
+    # print(extractor.func_results)
+    # print("=======================================")
+
+
     memory_alloc = StaticMemoryAllocation(extractor.results,False,extractor.params,extractor.ret)
     #allocate memory for function vars and paramters and return value
     memory_alloc2 = StaticMemoryAllocation(extractor.func_results,True,extractor.params,extractor.ret)
