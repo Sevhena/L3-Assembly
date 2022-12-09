@@ -12,12 +12,24 @@ class StaticMemoryAllocation():
             self.__global_vars = vars
         self.symbols_global = {}
         self.symbols_func = {}
-        self.memory = 0
         self.constants = []
+        self.memLocations = {}
 
+    def genMem(self,vars):
+        functions = {}
+        for func in vars:
+            if(len(vars[func]) >2):
+                if(vars[func][2] not in functions):
+                    functions[vars[func][2]] = 0
+            else:
+                if(vars[func][1] not in functions):
+                    functions[vars[func][1]] = 0
+
+        return functions
 
     def generate(self):
         if(self.function):
+            memGen = self.genMem(self.func_vars)
             print('; Allocating Function memory')
             for n in self.func_vars:
                 if len(n) > 8:
@@ -28,21 +40,32 @@ class StaticMemoryAllocation():
                     temp = self.symbols_func[n]
                 else:
                     temp = n
-                print(f'{str(temp+":"):<9}\t.EQUATE ' + str(self.memory))
-                self.memory+=2
+                if(len(self.func_vars[temp])>2):
+                    print(f'{str(temp+":"):<9}\t.EQUATE ' + str(memGen[self.func_vars[temp][2]]))
+                    self.memLocations[temp] = memGen[self.func_vars[temp][2]]
+                    memGen[self.func_vars[temp][2]] +=2
+                else:
+                    print(f'{str(temp+":"):<9}\t.EQUATE ' + str(memGen[self.func_vars[temp][1]]))
+                    self.memLocations[temp] = memGen[self.func_vars[temp][1]]
+                    memGen[self.func_vars[temp][1]] +=2
 
-            self.memory+=2
+
+
+            for i in memGen:
+                memGen[i] += 2
             if(len(self.params) >0):
                 for para in self.params:
-                    print(f'{str(self.params[para][0]+":"):<9}\t.EQUATE ' + str(self.memory))
-                    self.memory+=2
+                    print(f'{str(self.params[para][0]+":"):<9}\t.EQUATE ' + str(memGen[self.params[para][1]]))
+                    self.memLocations[self.params[para][0]] = memGen[self.params[para][1]]
+                    memGen[self.params[para][1]]+=2
             if(len(self.ret)>0):
                 for ret in self.ret:
                     if(self.ret[ret][1] == False):
-                        print(f'{str(self.ret[ret][0]+":"):<9}\t.EQUATE ' + str(self.memory))
-                        self.memory+=2
+                        print(f'{str(self.ret[ret][0]+":"):<9}\t.EQUATE ' + str(memGen[self.ret[ret][2]]))
+                        self.memLocations[self.ret[ret][0]] = memGen[self.ret[ret][2]]
+                        memGen[self.ret[ret][2]] += 2
             numOfFunVars = self.calculateVars(self.func_vars)
-            return (self.symbols_func,numOfFunVars)
+            return (self.symbols_func,numOfFunVars,self.memLocations)
         else:
             print('; Allocating Global (static) memory')
             accepted = False

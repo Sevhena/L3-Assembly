@@ -51,11 +51,30 @@ class GlobalVariableExtraction(ast.NodeVisitor):
                 raise ValueError("Only unary assignments are supported")
             if(nobe.targets[0].id not in self.func_results):
                 if('value' in nobe.value.__match_args__):
-                    self.func_results[nobe.targets[0].id] = [str(type(nobe.value)),nobe.value.value,self.current_function]
+                    if(nobe.targets[0].id not in self.params):
+                        self.func_results[nobe.targets[0].id] = [str(type(nobe.value)),nobe.value.value,self.current_function]
                 else:
-                    self.func_results[nobe.targets[0].id] = [str(type(nobe.value)),self.current_function]
+                    if(nobe.targets[0].id not in self.params):
+                        self.func_results[nobe.targets[0].id] = [str(type(nobe.value)),self.current_function]
 
-        
+    def vis_Asg_If(self,node):
+        for i in node:
+            if(str(type(i)) == "<class 'ast.Return'>"):
+                if(str(type(i.value)) != "<class 'ast.Constant'>"):
+                    self.ret[i.value.id] = ["retVal"+str(self.retVal+1),False,self.current_function]
+                    self.retVal+=1
+            else:
+                for nobe in node:
+                    if len(nobe.targets) != 1:
+                        raise ValueError("Only unary assignments are supported")
+                    if(nobe.targets[0].id not in self.func_results):
+                        if('value' in nobe.value.__match_args__):
+                            if(nobe.targets[0].id not in self.params):
+                                self.func_results[nobe.targets[0].id] = [str(type(nobe.value)),nobe.value.value,self.current_function]
+                        else:
+                            if(nobe.targets[0].id not in self.params):
+                                self.func_results[nobe.targets[0].id] = [str(type(nobe.value)),self.current_function]
+
 
     def visit_FunctionDef(self, node):
         """We do not visit function definitions, they are not global by definition"""
@@ -71,8 +90,13 @@ class GlobalVariableExtraction(ast.NodeVisitor):
                 self.ret[nobe.value.id] = ["retVal"+str(self.retVal+1),False,self.current_function]
                 self.retVal+=1
             elif(str(type(nobe)) == "<class 'ast.While'>"):
-                print()
                 self.vis_Asg_While(nobe.body)
+            elif(str(type(nobe)) =="<class 'ast.If'>"):    
+                for i in nobe.__match_args__:
+                    if(i == 'body'):
+                        self.vis_Asg_If(nobe.body)
+                    elif(i == 'orelse'):
+                        self.vis_Asg_If(nobe.orelse)
 
                 
 

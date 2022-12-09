@@ -5,7 +5,7 @@ LabeledInstruction = tuple[str, str]
 class TopLevelProgram(ast.NodeVisitor):
     """We supports assignments and input/print calls"""
     
-    def __init__(self, entry_point,global_symbols,constants,func_sysmbols,numOfFuncVars,params,ret) -> None:
+    def __init__(self, entry_point,global_symbols,constants,func_sysmbols,numOfFuncVars,params,ret,memLocations) -> None:
         super().__init__()
         self.__instructions = list()
         self.__instructionsFunc = list()
@@ -35,6 +35,9 @@ class TopLevelProgram(ast.NodeVisitor):
         self.setOfInstructions = []
         self.__current_function = None
         self.counter = 0
+        self.nums = 0
+        self.memLocations = memLocations
+        self.inIf = False
 
     def calculateSubspFunc(self,para):
         counter = {}
@@ -45,6 +48,12 @@ class TopLevelProgram(ast.NodeVisitor):
                 counter[para[i][1]] = 1
         return counter
 
+    def hasReturn(self,ret,target):
+        for i in ret:
+            if(target in ret[i]):
+                return True
+        return False
+    
     def printFunction(self, ret):
         for i in ret:
             if(True in ret[i]):
@@ -53,10 +62,18 @@ class TopLevelProgram(ast.NodeVisitor):
     def finalize(self):
         self.__instructions.append((None, '.END'))
         if(len(self.ret)>0):
-            self.__record_instructionStart(f'SUBSP '+ str(self.counter)+",i")
-            return self.__instructionsFunc + self.__instructionsSUBSP+ self.__instructions
+            t = 1
         else:
-            return self.__instructionsSUBSP+ self.__instructions
+            t=0
+        self.__record_instructionStart(f'SUBSP '+ str((self.nums+t)*2)+",i")
+        return self.__instructionsFunc + self.__instructionsSUBSP+ self.__instructions
+
+
+    def constantReturn(self,function,ret):
+        for i in ret:
+            if(function in ret[i]):
+                return ret[i][0]
+        return 0
 
     ####
     ## Handling Assignments (variable = ...)
@@ -68,8 +85,8 @@ class TopLevelProgram(ast.NodeVisitor):
         returning = False
         accepted = False
         for i in self.ret:
-            if(self.__current_variable in self.ret[i] and self.inFunctionDef != True):
-                temp = self.ret[i][0]
+            if(self.__current_variable in self.ret[i] and self.inFunctionDef == True):
+                temp = self.ret[i][2]
                 accepted = True
         if(not accepted):
             if(self.__current_variable in self.global_symbols):
@@ -81,7 +98,6 @@ class TopLevelProgram(ast.NodeVisitor):
                 self.occurance[self.__current_variable] = 1
             else:
                 self.occurance[self.__current_variable] += 1
-        
         # visiting the left part, now knowing where to store the result
         
         if(self.__current_variable[0] != "_"):
@@ -104,13 +120,14 @@ class TopLevelProgram(ast.NodeVisitor):
                     if(self.inFunctionDef):
                         if(temp in self.params):
                             temp = self.params[temp][0]
-                        
                         self.__record_instructionFunction(f'STWA {temp},s')
                     else:
                         if(returning):
                             self.__record_instruction(f'LDWA {self.numReturned},s')
                             self.numReturned +=2
                             returning = False
+                        if(self.__current_function != None):
+                            temp = self.ret[self.__current_function][0]
                         self.__record_instruction(f'STWA {temp},d')
                 else:
                     self.__should_save = True
@@ -132,6 +149,9 @@ class TopLevelProgram(ast.NodeVisitor):
         if(self.inFunctionDef):
             if(temp in self.params):
                 temp = self.params[temp]
+            if(str(type(temp)) == "<class 'list'>"):
+                hold = temp
+                temp = hold[0]
             self.__record_instructionFunction(f'LDWA {temp},s')
         else:
             self.__record_instruction(f'LDWA {temp},d')
@@ -146,6 +166,9 @@ class TopLevelProgram(ast.NodeVisitor):
             raise ValueError(f'Unsupported binary operator: {node.op}')
 
     def visit_Call(self, node):
+        if(not self.inFunctionDef):
+            if(node.func.id in self.funcNames):
+                self.nums+=1
         if(self.__current_variable in self.global_symbols):
             temp = self.global_symbols[self.__current_variable]
         else:
@@ -180,15 +203,34 @@ class TopLevelProgram(ast.NodeVisitor):
                 if(str(node.func.id) in self.funcNames):
                     if(self.inFunctionDef):
                         if(len(node.args)>0):
+                            counts = 0
+                            num = self.calculateSubspFunc(self.params)
+                            if (self.hasReturn(self.ret,node.func.id)):
+                                counts += (num[node.func.id]+1)
+                            self.__record_instructionFunction(f'SUBSP '+str(counts*2)+",i")
                             count = 0
                             for p in node.args:
-                                self.__record_instructionFunction(f'LDWA {p.id},d')
-                                self.__record_instructionFunction(f'STWA {count},s')
-                                count+=2
+                                if(p.id not in self.memLocations):
+                                    self.__record_instructionFunction(f'LDWA {self.memLocations[self.params[p.id][0]] + counts*2},s')
+                                    # if(self.inIf):
+                                    #     self.__record_instructionFunction(f'STWA {0},s')
+                                    # else:
+                                    #     print(p.id,"       ", self.memLocations[self.params[p.id][0]], "      ",self.params[p.id], "     sd")
+                                        
+                                    #     self.__record_instructionFunction(f'STWA {self.memLocations[self.params[p.id][0]]},s')
+                                    self.__record_instructionFunction(f'STWA {0},s')
+                                    count+=2
+                                else:
+                                    self.__record_instructionFunction(f'LDWA {self.memLocations[p.id] + counts*2},s')
+                                    if(self.inIf):
+                                        self.__record_instructionFunction(f'STWA {0},s')
+                                    else:
+                                        self.__record_instructionFunction(f'STWA {self.memLocations[p.id]},s')
+                                    count+=2
 
                         self.__record_instructionFunction(f'CALL {node.func.id}')
                         if(len(self.params) > 0):
-                            self.__record_instructionFunction(f'ADDSP '+str(len(self.params)*2)+",i")
+                            self.__record_instructionFunction(f'ADDSP '+str(counts*2)+",i")
                     else:
                         if(len(node.args)>0):
                             count = 0
@@ -196,13 +238,12 @@ class TopLevelProgram(ast.NodeVisitor):
                                 self.__record_instruction(f'LDWA {p.id},d')
                                 self.__record_instruction(f'STWA {count},s')
                                 count+=2
-                        self.counter+=count
+                            self.counter+=count
                         self.__record_instruction(f'CALL {node.func.id}')
                         num = self.calculateSubspFunc(self.params)
-                        want = self.printFunction(self.ret)
+                        
                         if(len(self.params) > 0):
-                            self.counter += num[want]*2
-                            self.__record_instruction(f'ADDSP '+str(num[want]*2)+",i")
+                            self.__record_instruction(f'ADDSP '+str((self.nums)*2)+",i")
                 else:
                     raise ValueError(f'Unsupported function call: { node.func.id}')
 
@@ -248,6 +289,7 @@ class TopLevelProgram(ast.NodeVisitor):
     ###
 
     def visit_If(self, node):
+        self.inIf = True
         branch_id = self.__identify_if()
         else_flag = False # flags next if as an else
 
@@ -288,6 +330,7 @@ class TopLevelProgram(ast.NodeVisitor):
         # If lone if
         else:
             if(self.inFunctionDef):
+                
                 self.__record_instructionFunction(f'{inverted[type(node.test.ops[0])]} end_if{self.__if_tree_id}')
             else:
                 self.__record_instruction(f'{inverted[type(node.test.ops[0])]} end_if{self.__if_tree_id}')
@@ -297,7 +340,11 @@ class TopLevelProgram(ast.NodeVisitor):
             self.visit(contents)
 
         # Branch to continuation of main program
-        self.__record_instruction(f'BR end_if{self.__if_tree_id}')
+        if(self.inFunctionDef):
+            self.__record_instructionFunction(f'BR end_if{self.__if_tree_id}')
+        else:
+            self.__record_instruction(f'BR end_if{self.__if_tree_id}')
+
         
         # Visits other ifs in if tree
         for contents in node.orelse:
@@ -318,15 +365,19 @@ class TopLevelProgram(ast.NodeVisitor):
                 self.__record_instruction(f'NOP1', label = f'end_if{self.__if_tree_id}')
             self.__if_tree_id += 1
             self.__in_if_tree = False
-
+        self.inIf = False
 
     ####
     ## Not handling function calls 
     ####
 
     def visit_FunctionDef(self, node):
-        self.inFunctionDef = True
         self.__current_function = node.name
+        self.inFunctionDef = True
+        # if(self.__current_function in self.inFunctionDef):
+        #     self.inFunctionDef[self.__current_function]+=1
+        # else:
+        #     self.inFunctionDef[self.__current_function] = 1
         self.funcNames.append(self.__current_function)
         check = False
         self.__record_instructionFunction(f'SUBSP '+ str(self.numOfFuncVars[self.__current_function]*2)+",i", label = f'{self.__current_function}')
@@ -337,18 +388,23 @@ class TopLevelProgram(ast.NodeVisitor):
         if(not check):
             self.__record_instructionFunction(f'ADDSP '+ str(self.numOfFuncVars[self.__current_function]*2)+",i")
             self.__record_instructionFunction(f'RET ')
-            self.inFunctionDef = False
-        # self.setOfInstructions+= self.__instructionsFunc
-        # self.__instructionsFunc = list()
+        # self.inFunctionDef[self.__current_function] -=1
+        self.inFunctionDef = False
+        
         
     def visit_Return(self, node):
         subsp = self.calculateSubspFunc(self.params)
-        if(node.value.id in self.ret):
-            self.__record_instructionFunction(f'LDWA '+ node.value.id+",s")
-            self.__record_instructionFunction(f'STWA '+ self.ret[node.value.id][0]+",s")
-        self.__record_instructionFunction(f'ADDSP '+ str(self.numOfFuncVars[self.__current_function]*2)+",i")
-        self.__record_instructionFunction(f'RET ')
-        self.inFunctionDef = False
+        if(str(type(node.value)) == "<class 'ast.Constant'>"):
+            self.__record_instructionFunction(f'LDWA '+ str(node.value.value)+",i")
+            self.__record_instructionFunction(f'STWA '+ self.constantReturn(self.__current_function,self.ret)+",s")
+            self.__record_instructionFunction(f'ADDSP '+ str(self.numOfFuncVars[self.__current_function]*2)+",i")
+            self.__record_instructionFunction(f'RET ')
+        else:
+            if(node.value.id in self.ret):
+                self.__record_instructionFunction(f'LDWA '+ node.value.id+",s")
+                self.__record_instructionFunction(f'STWA '+ self.ret[node.value.id][0]+",s")
+            self.__record_instructionFunction(f'ADDSP '+ str(self.numOfFuncVars[self.__current_function]*2)+",i")
+            self.__record_instructionFunction(f'RET ')
 
 
 

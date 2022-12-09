@@ -10,11 +10,11 @@ def main():
     with open(input_file) as f:
         source = f.read()
     node = ast.parse(source)
-    print("========================================")
-    print("=======================================")
-    print(ast.dump(node, indent=2))
-    print("========================================")
-    print("========================================")
+    # print("========================================")
+    # print("=======================================")
+    # print(ast.dump(node, indent=2))
+    # print("========================================")
+    # print("========================================")
     if print_ast:
         print(ast.dump(node, indent=2))
     else:
@@ -39,12 +39,14 @@ def process(input_file, root_node):
     #allocate memory for global vars
    
    
-    # print(extractor.results)
+    # # print(extractor.results)
     # print("=======================================")
     # print(extractor.params)
     # print("=======================================")
-    # print(extractor.func_results)
+    # print(extractor.ret)
     # print("=======================================")
+    # # print(extractor.func_results)
+    # # print("=======================================")
 
 
     memory_alloc = StaticMemoryAllocation(extractor.results,False,extractor.params,extractor.ret)
@@ -53,9 +55,9 @@ def process(input_file, root_node):
     print('; Branching to top level (tl) instructions')
     print('\t\tBR tl')
     global_symbols,global_constants = memory_alloc.generate()
-    func_symbols,numOfFuncVars = memory_alloc2.generate()
+    func_symbols,numOfFuncVars,memLocations = memory_alloc2.generate()
 
-    top_level = TopLevelProgram('tl',global_symbols,global_constants,func_symbols,numOfFuncVars,extractor.params,extractor.ret)
+    top_level = TopLevelProgram('tl',global_symbols,global_constants,func_symbols,numOfFuncVars,extractor.params,extractor.ret,memLocations)
     top_level.visit(root_node)
     ep = EntryPoint(top_level.finalize())
     ep.generate() 
